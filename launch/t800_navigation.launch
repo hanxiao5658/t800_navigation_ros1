@@ -1,0 +1,15 @@
+<launch>
+  <!-- Link truth; independent of FAST-LIO. -->
+  <node pkg="t800_navigation" type="gazebo_ground_truth.py"
+        name="gazebo_ground_truth" output="screen">
+    <param name="link_name" value="t800::dummy_root"/>
+    <param name="world_frame" value="world"/>
+    <param name="publish_rate" value="30.0"/>
+  </node>
+
+  <node pkg="t800_navigation" type="waypoint_controller.py"
+        name="waypoint_controller" output="screen">
+    <rosparam command="load" file="$(find t800_navigation)/config/waypoints.yaml"/>
+    <rosparam command="load" file="$(find t800_navigation)/config/navigation_params.yaml"/>
+  </node>
+</launch>

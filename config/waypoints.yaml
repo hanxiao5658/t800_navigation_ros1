@@ -1,0 +1,19 @@
+# Absolute waypoints in Gazebo world (x, y in meters; yaw in radians).
+# yaw describes the desired orientation AFTER arriving at each point.
+frame_id: world
+waypoints:
+  - id: wp1
+    x: 1.0
+    y: 0.0
+    yaw: 1.5708
+    wait: 2.0
+  - id: wp2
+    x: 1.0
+    y: 1.5
+    yaw: 3.1416
+    wait: 2.0
+  - id: wp3
+    x: 0.0
+    y: 1.5
+    yaw: 0.0
+    wait: 0.0

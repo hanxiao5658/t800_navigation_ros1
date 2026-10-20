@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>t800_navigation</name>
+  <version>0.1.0</version>
+  <description>Ordered waypoint navigation and Gazebo truth for EngineAI T800 (ROS1 Noetic).</description>
+  <maintainer email="maintainer@example.com">T800 developer</maintainer>
+  <license>BSD-3-Clause</license>
+  <buildtool_depend>catkin</buildtool_depend>
+  <depend>rospy</depend>
+  <depend>geometry_msgs</depend>
+  <depend>gazebo_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
+  <depend>tf</depend>
+</package>
