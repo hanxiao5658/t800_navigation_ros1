@@ -2,18 +2,94 @@
 # yaw describes the desired orientation AFTER arriving at each point.
 frame_id: world
 waypoints:
+  # entrance
   - id: wp1
     x: 1.0
-    y: 0.0
-    yaw: 1.5708
-    wait: 2.0
+    y: -10.40
+    yaw: 0
+
+  # waypont 2
   - id: wp2
-    x: 1.0
-    y: 1.5
-    yaw: 3.1416
-    wait: 2.0
+    x: -10.0
+    y: -10.4
+    yaw: 0
+  
+  # waypoint 3 
+  # empty wp introduce noting   
   - id: wp3
-    x: 0.0
-    y: 1.5
-    yaw: 0.0
-    wait: 0.0
+    x: -10.0
+    y: -5.44
+    yaw: 0
+    
+  # waypoint 4   
+  - id: wp4
+    x: -8.150
+    y: -5.724
+    yaw: -3.123
+    
+  # waypoint 5  
+  - id: wp5
+    x: -0.580
+    y: -5.724
+    yaw: -3.123    
+    
+  # waypoint 6  
+  - id: wp6
+    x: -0.7580
+    y: 3.83
+    yaw: -1.558  
+    
+  # waypoint 7  
+  - id: wp7
+    x: -0.929
+    y: 8.337
+    yaw: -1.558  
+   
+  # waypoint 8  
+  - id: wp8
+    x: 9.589
+    y: 7.263
+    yaw: 3.12 
+    
+  # waypoint 9  
+  - id: wp9
+    x: 12.556
+    y: 6.583
+    yaw: 3.13 
+    
+  # waypoint 10  
+  - id: wp10
+    x: 12.157
+    y: 4.17
+    yaw: 1.587   
+    
+  # waypoint 11  
+  - id: wp11
+    x: 12.273
+    y: -3.06
+    yaw: 1.587   
+    
+  # waypoint 12 empty   
+  - id: wp12
+    x: 12.380
+    y: -10.447
+    yaw: -3.12 
+   
+  # waypoint 13 gohome   
+  - id: wp13
+    x: 1.122
+    y: -10.67
+    yaw: -0.27 
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
