@@ -1,0 +1,5 @@
+# 只增加障碍状态输入和看门狗；原有 navigation_params.yaml 不改动。
+obstacle_enabled: true
+obstacle_topic: /my_ros1/navigation/obstacle_status
+obstacle_timeout: 0.35
+safety_poll_rate: 20.0

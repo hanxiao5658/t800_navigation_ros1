@@ -1,5 +1,5 @@
 <launch>
-  <!-- Link truth; independent of FAST-LIO. -->
+  <!-- Gazebo 真值位姿：与之前版本一致 -->
   <node pkg="t800_navigation" type="gazebo_ground_truth.py"
         name="gazebo_ground_truth" output="screen">
     <param name="link_name" value="t800::dummy_root"/>
@@ -7,9 +7,17 @@
     <param name="publish_rate" value="30.0"/>
   </node>
 
+  <!-- 独立障碍物感知：先启动，缺失/点云超时均会输出 FAULT_* -->
+  <node pkg="t800_navigation" type="obstacle_detector.py"
+        name="obstacle_detector" output="screen" respawn="false">
+    <rosparam command="load" file="$(find t800_navigation)/config/obstacle_params.yaml"/>
+  </node>
+
+  <!-- 原有控制器，绝不覆盖你自己调好的导航参数 -->
   <node pkg="t800_navigation" type="waypoint_controller.py"
-        name="waypoint_controller" output="screen">
+        name="waypoint_controller" output="screen" respawn="false">
     <rosparam command="load" file="$(find t800_navigation)/config/waypoints.yaml"/>
     <rosparam command="load" file="$(find t800_navigation)/config/navigation_params.yaml"/>
+    <rosparam command="load" file="$(find t800_navigation)/config/obstacle_controller_params.yaml"/>
   </node>
 </launch>

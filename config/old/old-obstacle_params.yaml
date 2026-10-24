@@ -1,0 +1,43 @@
+# T800 MID360 原始 Livox CustomMsg 障碍物检测 — A2sim Gazebo 真值变换版
+# 本 YAML 只由 obstacle_detector.py 使用，不会覆盖 navigation_params.yaml 的速度/P参数。
+
+lidar_topic: /livox/lidar
+links_topic: /gazebo/link_states
+pose_topic: /my_ros1/navigation/base_pose_gt
+goal_topic: /my_ros1/navigation/obstacle_target
+status_topic: /my_ros1/navigation/obstacle_status
+base_link_name: t800::dummy_root
+lidar_link_name: t800::mid360_link
+
+# +X 前进、左右各 0.50m：总宽 1.00m
+min_forward: 0.20
+max_forward: 2.00
+corridor_half_width: 0.50
+
+# 只考虑展厅地板以上、头顶以下的障碍点（Gazebo world Z）
+min_world_z: 0.12
+max_world_z: 1.85
+
+# 沿机器人到当前 waypoint 的路径投影，最多检测到目标点前 3cm；
+# 目标点背后的墙不再触发停车。需按实际站位/制动距离校准。
+goal_end_margin: 0.03
+goal_close_distance: 0.05
+
+# MID360 激光会命中上半身 collision：近身遮罩，避免自身回波误停。
+# 代价：上半身正前方 0.2~0.4m 附近有检测盲区，必须实测。
+self_filter_enabled: true
+self_max_x: 0.40
+self_half_width: 0.48
+self_min_world_z: 0.75
+
+min_valid_points: 15
+min_obstacle_points: 5
+block_confirm_scans: 1
+clear_confirm_scans: 3
+
+# 同一时间基准使用 monotonic 实际时间，不受 gazebo /clock 跳变影响
+cloud_timeout: 0.35
+pose_timeout: 0.35
+links_timeout: 0.35
+goal_timeout: 0.0
+status_rate: 10.0

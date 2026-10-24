@@ -7,6 +7,7 @@
     -> MOVE_FORWARD（直线前进，允许小角度航向修正）
     -> ALIGN_FINAL_YAW（到点原地转到 YAML 指定 yaw）
     -> WAIT_FOR_NEXT（原地停车，必须人工确认才继续）
+    行进中：遇障 -> STOP_FOR_OBSTACLE；检测数据失效 -> WAIT_FOR_OBSTACLE_DATA
     -> next_waypoint 服务 -> 下一个 Waypoint
     最后一个 Waypoint 到达并完成转向 -> FINISHED（停车）
 
@@ -14,10 +15,15 @@
     /my_ros1/navigation/base_pose_gt : geometry_msgs/PoseStamped
     （Gazebo 真值；后续可替换为已经对齐坐标系的 FAST-LIO 位姿）
 
+【新增检测输入】
+    /my_ros1/navigation/obstacle_status : std_msgs/String
+    由独立节点以固定频率发布 CLEAR/BLOCKED/FAULT_*，附带目标序号。
+    控制器同时检查状态和心跳：只有新鲜 CLEAR 才允许运动。
 【输出话题，均以 /my_ros1 开头】
     /my_ros1/motion/body_vel_cmd          : geometry_msgs/Twist，机体坐标系速度
     /my_ros1/navigation/state            : std_msgs/String，导航状态
     /my_ros1/navigation/active_waypoint  : geometry_msgs/PoseStamped，当前目标
+    /my_ros1/navigation/obstacle_target  : std_msgs/String，供检测节点使用的原子目标 ID 与 XY
     /my_ros1/navigation/waypoints_path   : nav_msgs/Path，预设路径（可视化）
 
 【控制服务（也以 /my_ros1 开头）】
@@ -28,7 +34,7 @@
 注意：
 1. YAML waypoint 的 yaw 是到达位置后的最终朝向，不是行走时的朝向。
 2. 旧 YAML 的 wait 字段不再生效；等待时长由人工决定。
-3. 当前不包含障碍物检测；后续将 STOP_FOR_OBSTACLE 作为独立状态接入。
+3. 障碍物检测独立节点处理；本控制器不解析点云，仅负责心跳/状态门控。
 4. 下游接口无超时看门狗。本节点正常运行时会在停车状态持续发零速度；
    Ctrl+C 时也尝试发送多次零速度，但跨 ROS Bridge/LCM 不保证送达。
 """
@@ -85,6 +91,16 @@ class WaypointController:
         self.max_steer = float(rospy.get_param('~max_steering_speed', 0.12))
         self.autostart = bool(rospy.get_param('~autostart', False))
 
+        # 障碍物检测心跳：不受 Gazebo /clock 暂停影响，使用 monotonic 时间。
+        # enabled=false 仅用于隔离诊断；正常导航应一直开启。
+        self.obstacle_enabled = bool(rospy.get_param('~obstacle_enabled', True))
+        self.obstacle_topic = rospy.get_param(
+            '~obstacle_topic', '/my_ros1/navigation/obstacle_status')
+        self.obstacle_timeout = float(rospy.get_param('~obstacle_timeout', 0.5))
+        self.safety_poll_rate = float(rospy.get_param('~safety_poll_rate', 20.0))
+        if self.obstacle_timeout <= 0.0 or self.safety_poll_rate <= 0.0:
+            raise ValueError('obstacle_timeout and safety_poll_rate must be > 0')
+
         if self.rate <= 0.0 or self.pose_timeout <= 0.0:
             raise ValueError('control_rate and pose_timeout must be > 0')
         if not (0.0 < self.yaw_tol < self.realign < math.pi):
@@ -129,6 +145,10 @@ class WaypointController:
         self.state = 'WAIT_FOR_POSE' if self.autostart else 'IDLE'
         self.paused_at_waypoint = False  # 暂停前是否处于 WAIT_FOR_NEXT
         self.shutdown_requested = False
+        # 状态取值：CLEAR / BLOCKED / FAULT_*；必须与当前目标序号匹配。
+        self.obstacle_value = 'FAULT_NO_HEARTBEAT'
+        self.obstacle_goal_seq = -1
+        self.obstacle_wall_time = None
 
         self.cmd_pub = rospy.Publisher(self.cmd_topic, Twist, queue_size=1)
         self.status_pub = rospy.Publisher(
@@ -138,8 +158,12 @@ class WaypointController:
             queue_size=1, latch=True)
         self.path_pub = rospy.Publisher(
             '/my_ros1/navigation/waypoints_path', Path, queue_size=1, latch=True)
+        self.obstacle_goal_pub = rospy.Publisher(
+            '/my_ros1/navigation/obstacle_target', String,
+            queue_size=1, latch=True)
 
         rospy.Subscriber(self.pose_topic, PoseStamped, self.on_pose, queue_size=1)
+        rospy.Subscriber(self.obstacle_topic, String, self.on_obstacle, queue_size=5)
         rospy.Service('/my_ros1/navigation/start', Trigger, self.on_start)
         rospy.Service('/my_ros1/navigation/pause', Trigger, self.on_pause)
         rospy.Service('/my_ros1/navigation/next_waypoint', Trigger, self.on_next_waypoint)
@@ -149,6 +173,10 @@ class WaypointController:
         self.publish_goal()
         self.publish_status()
         rospy.Timer(rospy.Duration.from_sec(1.0 / self.rate), self.control_step)
+        # ROS1 开启 use_sim_time 时，rospy.Timer 会随 /clock 暂停；另起实时时钟
+        # 看门狗线程，保证通信中断时仍然能够主动下发零速度。
+        self.safety_thread = threading.Thread(target=self.safety_watchdog, daemon=True)
+        self.safety_thread.start()
         rospy.loginfo('T800 navigator ready: %d waypoints; manual next enabled; autostart=%s',
                       len(self.waypoints), self.autostart)
 
@@ -176,6 +204,66 @@ class WaypointController:
             return (self.pose is not None and self.pose_wall_time is not None
                     and time.monotonic() - self.pose_wall_time <= self.pose_timeout)
 
+    def on_obstacle(self, msg):
+        """接收独立检测节点的固定频率状态和心跳。
+
+        格式：CLEAR|goal=2|points=0|nearest=nan
+        使用 goal 序号防止切换 Waypoint 后误采用上一个目标的 CLEAR。
+        收到格式错误消息时按故障处理，而不是默认为安全。
+        """
+        fields = msg.data.strip().split('|')
+        state = fields[0] if fields else 'FAULT_BAD_STATUS'
+        seq = -1
+        try:
+            for field in fields[1:]:
+                if field.startswith('goal='):
+                    seq = int(field.split('=', 1)[1])
+                    break
+        except (TypeError, ValueError):
+            state, seq = 'FAULT_BAD_STATUS', -1
+        if state != 'CLEAR' and state != 'BLOCKED' and not state.startswith('FAULT_'):
+            state = 'FAULT_BAD_STATUS'
+        with self.lock:
+            self.obstacle_value = state
+            self.obstacle_goal_seq = seq
+            self.obstacle_wall_time = time.monotonic()
+
+    def obstacle_health(self):
+        """返回 CLEAR/BLOCKED/FAULT_*，仅新鲜且与当前目标匹配的 CLEAR 放行。
+
+        由控制线程或服务回调持锁调用；本函数不访问 ROS 仿真时钟。
+        """
+        if not self.obstacle_enabled:
+            return 'CLEAR'
+        if (self.obstacle_wall_time is None or
+                time.monotonic() - self.obstacle_wall_time > self.obstacle_timeout):
+            return 'FAULT_COMM_TIMEOUT'
+        if self.obstacle_goal_seq != self.index + 1:
+            return 'FAULT_GOAL_MISMATCH'
+        return self.obstacle_value
+
+    def safety_watchdog(self):
+        """真实时间线程：Gazebo 暂停或检测节点崩溃时，仍持续强制停车。
+
+        注意：ROS1/ROS2 Bridge/LCM 也可能全部断链，因此此层不替代硬件急停。
+        """
+        interval = 1.0 / self.safety_poll_rate
+        while not rospy.is_shutdown() and not self.shutdown_requested:
+            with self.lock:
+                moving_task = (self.enabled and self.state not in
+                               ('WAIT_FOR_NEXT', 'FINISHED', 'IDLE'))
+                if moving_task:
+                    obs = self.obstacle_health()
+                    if not self.pose_is_fresh():
+                        self.change_state('WAIT_FOR_POSE')
+                        self.publish_cmd(0.0, 0.0)
+                    elif obs != 'CLEAR':
+                        new_state = ('STOP_FOR_OBSTACLE' if obs == 'BLOCKED'
+                                     else 'WAIT_FOR_OBSTACLE_DATA')
+                        self.change_state(new_state)
+                        self.publish_cmd(0.0, 0.0)
+            time.sleep(interval)
+
     def on_start(self, _req):
         """开始/恢复导航；从 WAIT_FOR_NEXT 恢复时绝不跳过人工确认。"""
         with self.lock:
@@ -188,6 +276,11 @@ class WaypointController:
                 return TriggerResponse(success=False, message='Navigation already running')
             if not self.pose_is_fresh():
                 return TriggerResponse(success=False, message='No fresh ground-truth pose')
+            # 开始任务时要求障碍物节点已在线且正在报告 CLEAR。
+            if self.obstacle_enabled and self.obstacle_health() != 'CLEAR':
+                return TriggerResponse(success=False,
+                                       message='Obstacle detector not CLEAR: {}'.format(
+                                           self.obstacle_health()))
 
             # 只有上一轮任务完成后再次 start，才从 wp1 开始新一轮。
             if self.state == 'FINISHED' or self.index >= len(self.waypoints):
@@ -235,6 +328,9 @@ class WaypointController:
                 return TriggerResponse(success=False, message='No next waypoint')
 
             self.index += 1  # 按一次按钮，仅增加一个目标点
+            # 新目标必须重新由检测节点处理；禁止沿用旧目标 CLEAR。
+            self.obstacle_wall_time = None
+            self.obstacle_goal_seq = -1
             self.publish_goal()
             self.change_state('ALIGN_HEADING')
             self.publish_cmd(0.0, 0.0)
@@ -254,9 +350,10 @@ class WaypointController:
 
     def publish_status(self):
         label = self.waypoints[min(self.index, len(self.waypoints)-1)]['id']
-        self.status_pub.publish(String(data='state={} waypoint={}/{} id={}'.format(
+        self.status_pub.publish(String(data='state={} waypoint={}/{} id={} obstacle={}'.format(
             self.state, min(self.index + 1, len(self.waypoints)),
-            len(self.waypoints), label)))
+            len(self.waypoints), label,
+            self.obstacle_health() if self.obstacle_enabled else 'DISABLED')))
 
     def as_pose(self, wp):
         msg = PoseStamped()
@@ -274,7 +371,13 @@ class WaypointController:
 
     def publish_goal(self):
         if self.index < len(self.waypoints):
-            self.goal_pub.publish(self.as_pose(self.waypoints[self.index]))
+            wp = self.waypoints[self.index]
+            self.goal_pub.publish(self.as_pose(wp))
+            # 不依赖 Header.seq（某些 ROS1 传输会自动重编号）；用一条消息
+            # 原子地携带目标序号和坐标，避免旧目标的 CLEAR 被误用于新目标。
+            self.obstacle_goal_pub.publish(String(
+                data='{}|{:.9f}|{:.9f}'.format(
+                    self.index + 1, wp['x'], wp['y'])))
 
     def publish_path(self):
         path = Path()
@@ -312,7 +415,17 @@ class WaypointController:
                 self.change_state('WAIT_FOR_POSE')
                 self.publish_cmd(0.0, 0.0)
                 return
-            if self.state == 'WAIT_FOR_POSE':
+            # 无论处于转向还是行走，检测节点失效或判定阻挡都立即停车。
+            # 控制侧自身心跳超时与检测侧点云超时是两套独立的看门狗。
+            obs = self.obstacle_health()
+            if obs != 'CLEAR':
+                self.change_state('STOP_FOR_OBSTACLE' if obs == 'BLOCKED'
+                                  else 'WAIT_FOR_OBSTACLE_DATA')
+                self.publish_cmd(0.0, 0.0)
+                return
+            if self.state in ('WAIT_FOR_POSE', 'STOP_FOR_OBSTACLE',
+                              'WAIT_FOR_OBSTACLE_DATA'):
+                # 故障恢复时先重新对准当前 Waypoint，不直接使用旧行走指令。
                 self.change_state('ALIGN_HEADING')
 
             x, y, yaw = self.pose
