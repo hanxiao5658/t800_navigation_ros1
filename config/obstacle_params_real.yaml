@@ -4,12 +4,12 @@
 
 lidar_topic: /livox/lidar
 # A2sim 用 livox_laser_simulation；未来 ROS1 实机可改成 livox_ros_driver2/CustomMsg 等
-lidar_message_type: livox_laser_simulation/CustomMsg
-pose_topic: /my_ros1/navigation/base_pose_gt
+lidar_message_type: livox_ros_driver2/CustomMsg
+pose_topic: /my_ros1/localization/base_footprint_pose
 goal_topic: /my_ros1/navigation/obstacle_target
 status_topic: /my_ros1/navigation/obstacle_status
 debug_topic: /my_ros1/navigation/obstacle_debug
-world_frame: world
+world_frame: map
 
 # *** 首次必须标定 XYZ 才能改成 true。false 时检测器发布 FAULT，导航停止。***
 extrinsics_calibrated: true

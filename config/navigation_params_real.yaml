@@ -1,5 +1,5 @@
 # Initial conservative settings; calibrate against T800's actual motion.
-pose_topic: /my_ros1/navigation/base_pose_gt
+pose_topic: /my_ros1/localization/base_footprint_pose
 cmd_topic: /my_ros1/motion/body_vel_cmd
 autostart: false
 control_rate: 30.0
