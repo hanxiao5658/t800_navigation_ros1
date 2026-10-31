@@ -1,0 +1,3 @@
+注意统一坐标系base_footprint就是导航仓库中的foot_frame
+机器人足底坐标系统一用base_footprint
+

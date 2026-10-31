@@ -10,14 +10,13 @@
   <!-- 独立障碍物感知：先启动，缺失/点云超时均会输出 FAULT_* -->
   <node pkg="t800_navigation" type="obstacle_detector.py"
         name="obstacle_detector" output="screen" respawn="false">
-    <rosparam command="load" file="$(find t800_navigation)/config/obstacle_params.yaml"/>
+    <rosparam command="load" file="$(find t800_navigation)/config/obstacle_params_sim.yaml"/>
   </node>
 
   <!-- 原有控制器，绝不覆盖你自己调好的导航参数 -->
   <node pkg="t800_navigation" type="waypoint_controller.py"
         name="waypoint_controller" output="screen" respawn="false">
-    <rosparam command="load" file="$(find t800_navigation)/config/waypoints.yaml"/>
-    <rosparam command="load" file="$(find t800_navigation)/config/navigation_params.yaml"/>
-    <rosparam command="load" file="$(find t800_navigation)/config/obstacle_controller_params.yaml"/>
+    <rosparam command="load" file="$(find t800_navigation)/config/waypoints_sim.yaml"/>
+    <rosparam command="load" file="$(find t800_navigation)/config/navigation_params_sim.yaml"/>
   </node>
 </launch>

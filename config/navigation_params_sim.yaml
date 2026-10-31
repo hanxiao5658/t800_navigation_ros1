@@ -1,0 +1,23 @@
+# Initial conservative settings; calibrate against T800's actual motion.
+pose_topic: /my_ros1/navigation/base_pose_gt
+cmd_topic: /my_ros1/motion/body_vel_cmd
+autostart: false
+control_rate: 30.0
+pose_timeout: 0.5
+xy_tolerance: 0.05
+yaw_tolerance_deg: 5.0
+realign_threshold_deg: 12.0
+kp_forward: 0.8
+kp_turn: 0.8
+kp_steer: 0.0
+max_forward_speed: 0.7
+min_forward_speed: 0.3
+max_turn_speed: 2.0
+min_turn_speed: 0.5
+max_steering_speed: 0.8
+
+# 增加障碍状态输入和看门狗。
+obstacle_enabled: true
+obstacle_topic: /my_ros1/navigation/obstacle_status
+obstacle_timeout: 0.35
+safety_poll_rate: 20.0

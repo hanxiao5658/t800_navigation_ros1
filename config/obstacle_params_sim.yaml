@@ -1,0 +1,66 @@
+# T800 MID360 六自由度外参 + 前方路径障碍物检测
+# 当前 ROS1 Noetic /livox/lidar 类型是 livox_laser_simulation/CustomMsg。
+# 外参全部在本文件配置；obstacle_detector.py 不再读取 Gazebo LinkStates。
+
+lidar_topic: /livox/lidar
+# A2sim 用 livox_laser_simulation；未来 ROS1 实机可改成 livox_ros_driver2/CustomMsg 等
+lidar_message_type: livox_laser_simulation/CustomMsg
+pose_topic: /my_ros1/navigation/base_pose_gt
+goal_topic: /my_ros1/navigation/obstacle_target
+status_topic: /my_ros1/navigation/obstacle_status
+debug_topic: /my_ros1/navigation/obstacle_debug
+world_frame: world
+
+# *** 首次必须标定 XYZ 才能改成 true。false 时检测器发布 FAULT，导航停止。***
+extrinsics_calibrated: true
+
+# 六自由度外参：MID360 坐标系相对于 foot_frame。
+# foot_frame 原点：双脚并拢时两脚脚尖连线的中点；X前、Y左、Z上。
+# 下面 XYZ 为待测占位示例，不是从 URDF 得到的精确 foot-frame 外参。
+lidar_x: 0.00        # m，待测
+lidar_y: 0.00        # m，待测
+lidar_z: 1.50        # m，待测
+lidar_roll: 0.0      # rad
+lidar_pitch: 0.8722  # rad，当前安装约 49.97°；以实测为准
+lidar_yaw: 0.0       # rad
+
+# 机器人全局定位话题的位姿原点不一定等于 foot_frame。
+# 当前 gazebo_ground_truth.py 返回 dummy_root，而非脚尖中点。
+# 这两个值是从定位位姿原点到脚尖中点，在机体水平坐标系下的偏移。
+# 若改为真正的 foot_frame 位姿话题，则保持两个值为 0。
+pose_origin_to_foot_x: 0.0    # m，需按实际坐标系核对
+pose_origin_to_foot_y: 0.0    # m，需按实际坐标系核对
+
+# 前方道路通道：沿 foot_frame 的 X 前方0.2～2.0m、左右各0.5m
+min_forward: 0.20
+max_forward: 2.00
+corridor_half_width: 0.50
+
+# 过滤地板及天花板：现在是 foot_frame Z 高度，不再是 world Z
+min_obstacle_z: 0.12
+max_obstacle_z: 1.85
+
+# 目标背后的墙不判为路径障碍；需结合足部原点和导航目标原点核对
+# 没有完整的人体碰撞体避障检查功能
+goal_end_margin: 0.03
+goal_close_distance: 0.05
+
+# 可疑的身体自身回波遮罩：会遮蔽0.2～0.4m且高度>=0.75m处的真实障碍。
+# 如果发现近距离盲区，必须结合自体几何细化，不能直接认为0.2m均覆盖。
+self_filter_enabled: true
+self_max_x: 0.40
+self_half_width: 0.48
+self_min_z: 0.75
+
+# 一帧有效障碍点数达到门槛后，经过 block_confirm_scans 次扫描确认。
+# 如果想实验“1个点就停”，可设两者为1，但假警报会明显增加。
+min_valid_points: 15
+min_obstacle_points: 5
+block_confirm_scans: 1
+clear_confirm_scans: 3
+
+# 防失联看门狗：监测新点云和新定位消息（用操作系统单调时钟）
+cloud_timeout: 0.35
+pose_timeout: 0.35
+status_rate: 10.0
+debug_rate: 2.0
