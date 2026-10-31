@@ -14,29 +14,28 @@ world_frame: map
 # *** 首次必须标定 XYZ 才能改成 true。false 时检测器发布 FAULT，导航停止。***
 extrinsics_calibrated: true
 
-# 六自由度外参：MID360 坐标系相对于 foot_frame。
-# foot_frame 原点：双脚并拢时两脚脚尖连线的中点；X前、Y左、Z上。
-# 下面 XYZ 为待测占位示例，不是从 URDF 得到的精确 foot-frame 外参。
-lidar_x: 0.00        # m，待测
-lidar_y: 0.00        # m，待测
-lidar_z: 1.50        # m，待测
+# 六自由度外参：MID360 坐标系相对于 base_footprint。
+# base_footprint 原点：双脚并拢时两脚脚尖连线的中点；X前、Y左、Z上。
+lidar_x: 0.00        # m，
+lidar_y: 0.00        # m，
+lidar_z: 1.50        # m，
 lidar_roll: 0.0      # rad
 lidar_pitch: 0.8722  # rad，当前安装约 49.97°；以实测为准
 lidar_yaw: 0.0       # rad
 
-# 机器人全局定位话题的位姿原点不一定等于 foot_frame。
+# 机器人全局定位话题的位姿原点不一定等于 base_footprint。
 # 当前 gazebo_ground_truth.py 返回 dummy_root，而非脚尖中点。
 # 这两个值是从定位位姿原点到脚尖中点，在机体水平坐标系下的偏移。
 # 若改为真正的 foot_frame 位姿话题，则保持两个值为 0。
 pose_origin_to_foot_x: 0.0    # m，需按实际坐标系核对
 pose_origin_to_foot_y: 0.0    # m，需按实际坐标系核对
 
-# 前方道路通道：沿 foot_frame 的 X 前方0.2～2.0m、左右各0.5m
+# 前方道路通道：沿 base_footprint 的 X 前方0.2～2.0m、左右各0.5m
 min_forward: 0.20
 max_forward: 2.00
 corridor_half_width: 0.50
 
-# 过滤地板及天花板：现在是 foot_frame Z 高度，不再是 world Z
+# 过滤地板及天花板：现在是 base_footprint Z 高度，不再是 world Z
 min_obstacle_z: 0.12
 max_obstacle_z: 1.85
 

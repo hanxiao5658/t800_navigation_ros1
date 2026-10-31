@@ -16,6 +16,7 @@ catkin_package()
 catkin_install_python(PROGRAMS
   scripts/gazebo_ground_truth.py
   scripts/waypoint_controller.py
+  scripts/obstacle_detector.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
