@@ -4,7 +4,6 @@ project(t800_navigation)
 find_package(catkin REQUIRED COMPONENTS
   rospy
   geometry_msgs
-  gazebo_msgs
   nav_msgs
   std_msgs
   std_srvs

@@ -21,3 +21,14 @@ obstacle_enabled: true
 obstacle_topic: /my_ros1/navigation/obstacle_status
 obstacle_timeout: 0.35
 safety_poll_rate: 20.0
+
+# 新增：定位状态门控，必须在实机上开启。
+localization_enabled: true
+gicp_status_topic: /my_ros1/localization/status
+pose_status_topic: /my_ros1/localization/pose_status
+gicp_status_timeout: 3.0
+pose_status_timeout: 2.0
+# 允许上游时间戳最多领先当前 ROS 时间 100ms，设备时间必须同步。
+pose_future_tolerance: 0.1
+# 实际频率等于 control_rate（30Hz）；不锁存；由 control_step 发布。
+heartbeat_topic: /my_ros1/navigation/controller_heartbeat
