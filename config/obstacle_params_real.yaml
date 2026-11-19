@@ -3,7 +3,7 @@
 # 外参全部在本文件配置；obstacle_detector.py 不再读取 Gazebo LinkStates。
 
 lidar_topic: /livox/lidar
-# A2sim 用 livox_laser_simulation；未来 ROS1 实机可改成 livox_ros_driver2/CustomMsg 等
+# A2sim 用 livox_laser_simulation；未来 ROS1 实机可改成 livox_ros_driver2/CustomMsg 等 livox_ros_driver2/CustomMsg
 lidar_message_type: livox_ros_driver2/CustomMsg
 pose_topic: /my_ros1/localization/base_footprint_pose
 goal_topic: /my_ros1/navigation/obstacle_target
@@ -18,9 +18,9 @@ extrinsics_calibrated: true
 # base_footprint 原点：双脚并拢时两脚脚尖连线的中点；X前、Y左、Z上。
 lidar_x: 0.00        # m，
 lidar_y: 0.00        # m，
-lidar_z: 1.50        # m，
-lidar_roll: 0.0      # rad
-lidar_pitch: 0.8722  # rad，当前安装约 49.97°；以实测为准
+lidar_z: 1.40        # m，
+lidar_roll: 0.0246      # rad
+lidar_pitch: 0.7768  # rad，当前安装约 49.97°；以实测为准
 lidar_yaw: 0.0       # rad
 
 # 机器人全局定位话题的位姿原点不一定等于 base_footprint。
@@ -32,7 +32,7 @@ pose_origin_to_foot_y: 0.0    # m，需按实际坐标系核对
 
 # 前方道路通道：沿 base_footprint 的 X 前方0.2～2.0m、左右各0.5m
 min_forward: 0.20
-max_forward: 2.00
+max_forward: 4.0
 corridor_half_width: 0.50
 
 # 过滤地板及天花板：现在是 base_footprint Z 高度，不再是 world Z
@@ -47,7 +47,7 @@ goal_close_distance: 0.05
 # 可疑的身体自身回波遮罩：会遮蔽0.2～0.4m且高度>=0.75m处的真实障碍。
 # 如果发现近距离盲区，必须结合自体几何细化，不能直接认为0.2m均覆盖。
 self_filter_enabled: true
-self_max_x: 0.40
+self_max_x: 0.30
 self_half_width: 0.48
 self_min_z: 0.75
 

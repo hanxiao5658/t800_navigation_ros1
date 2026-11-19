@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<launch>
+  <!--
+    T800 ROS1 real-robot bringup (put in t800_navigation/launch/).
+
+    Usage:
+      roslaunch t800_navigation ros1_bringup.launch
+
+    ROS1 `roslaunch` starts roscore automatically if no ROS Master is running.
+    Do NOT declare a separate <node pkg="roscore"> (roscore isn't a node).
+
+    Included launch files are started together. Their XML order does NOT mean
+    that LiDAR data, Odometry, localization or navigation are already ready.
+    No relocalization service, navigation/start service or velocity permission
+    is called here. The robot must remain disarmed until manual checks.
+  -->
+
+  <arg name="start_livox" default="true" />
+  <arg name="start_fastlio" default="true" />
+  <arg name="start_localization" default="true" />
+  <arg name="start_navigation" default="true" />
+
+  <!-- 1. Livox MID360s ROS1 driver (CustomMsg). -->
+  <include if="$(arg start_livox)"
+           file="$(find livox_ros_driver2)/launch_ROS1/msg_MID360s.launch" />
+
+  <!-- 2. FAST-LIO2 front-end; defaults ON for this manual reset workflow. -->
+  <include if="$(arg start_fastlio)"
+           file="$(find fast_lio)/launch/mapping_msg_mid360.launch" />
+
+  <!-- 3. FastGICP + map/map_raw/camera_init/body/base_footprint conversions. -->
+  <include if="$(arg start_localization)"
+           file="$(find t800_localization)/launch/localization.launch" />
+
+  <!-- 4. Real-robot obstacle detection and waypoint controller. -->
+  <include if="$(arg start_navigation)"
+           file="$(find t800_navigation)/launch/t800_navigation_real.launch" />
+</launch>
